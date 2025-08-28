@@ -1,5 +1,5 @@
-import {Mark} from "./mark"
-import {Node} from "./node"
+import { Mark } from './mark'
+import { Node } from './node'
 
 /// You can [_resolve_](#model.Node.resolve) a position to get more
 /// information about it. Objects of this class represent such a
@@ -37,19 +37,27 @@ export class ResolvedPos {
   /// The parent node that the position points into. Note that even if
   /// a position points into a text node, that node is not considered
   /// the parent—text nodes are ‘flat’ in this model, and have no content.
-  get parent() { return this.node(this.depth) }
+  get parent() {
+    return this.node(this.depth)
+  }
 
   /// The root node in which the position was resolved.
-  get doc() { return this.node(0) }
+  get doc() {
+    return this.node(0)
+  }
 
   /// The ancestor node at the given level. `p.node(p.depth)` is the
   /// same as `p.parent`.
-  node(depth?: number | null): Node { return this.path[this.resolveDepth(depth) * 3] }
+  node(depth?: number | null): Node {
+    return this.path[this.resolveDepth(depth) * 3]
+  }
 
   /// The index into the ancestor at the given level. If this points
   /// at the 3rd node in the 2nd paragraph on the top level, for
   /// example, `p.index(0)` is 1 and `p.index(1)` is 2.
-  index(depth?: number | null): number { return this.path[this.resolveDepth(depth) * 3 + 1] }
+  index(depth?: number | null): number {
+    return this.path[this.resolveDepth(depth) * 3 + 1]
+  }
 
   /// The index pointing after this position into the ancestor at the
   /// given level.
@@ -77,7 +85,7 @@ export class ResolvedPos {
   /// position.
   before(depth?: number | null): number {
     depth = this.resolveDepth(depth)
-    if (!depth) throw new RangeError("There is no position before the top-level node")
+    if (!depth) throw new RangeError('There is no position before the top-level node')
     return depth == this.depth + 1 ? this.pos : this.path[depth * 3 - 1]
   }
 
@@ -85,22 +93,28 @@ export class ResolvedPos {
   /// given level, or the original position when `depth` is `this.depth + 1`.
   after(depth?: number | null): number {
     depth = this.resolveDepth(depth)
-    if (!depth) throw new RangeError("There is no position after the top-level node")
-    return depth == this.depth + 1 ? this.pos : this.path[depth * 3 - 1] + this.path[depth * 3].nodeSize
+    if (!depth) throw new RangeError('There is no position after the top-level node')
+    return depth == this.depth + 1
+      ? this.pos
+      : this.path[depth * 3 - 1] + this.path[depth * 3].nodeSize
   }
 
   /// When this position points into a text node, this returns the
   /// distance between the position and the start of the text node.
   /// Will be zero for positions that point between nodes.
-  get textOffset(): number { return this.pos - this.path[this.path.length - 1] }
+  get textOffset(): number {
+    return this.pos - this.path[this.path.length - 1]
+  }
 
   /// Get the node directly after the position, if any. If the position
   /// points into a text node, only the part of that node after the
   /// position is returned.
   get nodeAfter(): Node | null {
-    let parent = this.parent, index = this.index(this.depth)
+    let parent = this.parent,
+      index = this.index(this.depth)
     if (index == parent.childCount) return null
-    let dOff = this.pos - this.path[this.path.length - 1], child = parent.child(index)
+    let dOff = this.pos - this.path[this.path.length - 1],
+      child = parent.child(index)
     return dOff ? parent.child(index).cut(dOff) : child
   }
 
@@ -118,7 +132,8 @@ export class ResolvedPos {
   /// given depth (which defaults to `this.depth`).
   posAtIndex(index: number, depth?: number | null): number {
     depth = this.resolveDepth(depth)
-    let node = this.path[depth * 3], pos = depth == 0 ? 0 : this.path[depth * 3 - 1] + 1
+    let node = this.path[depth * 3],
+      pos = depth == 0 ? 0 : this.path[depth * 3 - 1] + 1
     for (let i = 0; i < index; i++) pos += node.child(i).nodeSize
     return pos
   }
@@ -128,7 +143,8 @@ export class ResolvedPos {
   /// position is at the start of a non-empty node, the marks of the
   /// node after it (if any) are returned.
   marks(): readonly Mark[] {
-    let parent = this.parent, index = this.index()
+    let parent = this.parent,
+      index = this.index()
 
     // In an empty parent, return the empty array
     if (parent.content.size == 0) return Mark.none
@@ -136,10 +152,15 @@ export class ResolvedPos {
     // When inside a text node, just return the text node's marks
     if (this.textOffset) return parent.child(index).marks
 
-    let main = parent.maybeChild(index - 1), other = parent.maybeChild(index)
+    let main = parent.maybeChild(index - 1),
+      other = parent.maybeChild(index)
     // If the `after` flag is true of there is no node before, make
     // the node after this position the main reference.
-    if (!main) { let tmp = main; main = other; other = tmp }
+    if (!main) {
+      let tmp = main
+      main = other
+      other = tmp
+    }
 
     // Use all marks in the main node, except those that have
     // `inclusive` set to false and are not present in the other node.
@@ -161,7 +182,8 @@ export class ResolvedPos {
     let after = this.parent.maybeChild(this.index())
     if (!after || !after.isInline) return null
 
-    let marks = after.marks, next = $end.parent.maybeChild($end.index())
+    let marks = after.marks,
+      next = $end.parent.maybeChild($end.index())
     for (var i = 0; i < marks.length; i++)
       if (marks[i].type.spec.inclusive === false && (!next || !marks[i].isInSet(next.marks)))
         marks = marks[i--].removeFromSet(marks)
@@ -185,7 +207,11 @@ export class ResolvedPos {
   /// node to see if a range into that parent is acceptable.
   blockRange(other: ResolvedPos = this, pred?: (node: Node) => boolean): NodeRange | null {
     if (other.pos < this.pos) return other.blockRange(this)
-    for (let d = this.depth - (this.parent.inlineContent || this.pos == other.pos ? 1 : 0); d >= 0; d--)
+    for (
+      let d = this.depth - (this.parent.inlineContent || this.pos == other.pos ? 1 : 0);
+      d >= 0;
+      d--
+    )
       if (other.pos <= this.end(d) && (!pred || pred(this.node(d))))
         return new NodeRange(this, other, d)
     return null
@@ -208,19 +234,21 @@ export class ResolvedPos {
 
   /// @internal
   toString() {
-    let str = ""
+    let str = ''
     for (let i = 1; i <= this.depth; i++)
-      str += (str ? "/" : "") + this.node(i).type.name + "_" + this.index(i - 1)
-    return str + ":" + this.parentOffset
+      str += (str ? '/' : '') + this.node(i).type.name + '_' + this.index(i - 1)
+    return str + ':' + this.parentOffset
   }
 
   /// @internal
   static resolve(doc: Node, pos: number): ResolvedPos {
-    if (!(pos >= 0 && pos <= doc.content.size)) throw new RangeError("Position " + pos + " out of range")
+    if (!(pos >= 0 && pos <= doc.content.size))
+      throw new RangeError('Position ' + pos + ' out of range')
     let path: Array<Node | number> = []
-    let start = 0, parentOffset = pos
-    for (let node = doc;;) {
-      let {index, offset} = node.content.findIndex(parentOffset)
+    let start = 0,
+      parentOffset = pos
+    for (let node = doc; ; ) {
+      let { index, offset } = node.content.findIndex(parentOffset)
       let rem = parentOffset - offset
       path.push(node, index, start + offset)
       if (!rem) break
@@ -241,9 +269,9 @@ export class ResolvedPos {
         if (elt.pos == pos) return elt
       }
     } else {
-      resolveCache.set(doc, cache = new ResolveCache)
+      resolveCache.set(doc, (cache = new ResolveCache()))
     }
-    let result = cache.elts[cache.i] = ResolvedPos.resolve(doc, pos)
+    let result = (cache.elts[cache.i] = ResolvedPos.resolve(doc, pos))
     cache.i = (cache.i + 1) % resolveCacheSize
     return result
   }
@@ -254,7 +282,8 @@ class ResolveCache {
   i = 0
 }
 
-const resolveCacheSize = 12, resolveCache = new WeakMap<Node, ResolveCache>()
+const resolveCacheSize = 12,
+  resolveCache = new WeakMap<Node, ResolveCache>()
 
 /// Represents a flat range of content, i.e. one that starts and
 /// ends in the same node.
@@ -276,14 +305,24 @@ export class NodeRange {
   ) {}
 
   /// The position at the start of the range.
-  get start() { return this.$from.before(this.depth + 1) }
+  get start() {
+    return this.$from.before(this.depth + 1)
+  }
   /// The position at the end of the range.
-  get end() { return this.$to.after(this.depth + 1) }
+  get end() {
+    return this.$to.after(this.depth + 1)
+  }
 
   /// The parent node that the range points into.
-  get parent() { return this.$from.node(this.depth) }
+  get parent() {
+    return this.$from.node(this.depth)
+  }
   /// The start index of the range in the parent node.
-  get startIndex() { return this.$from.index(this.depth) }
+  get startIndex() {
+    return this.$from.index(this.depth)
+  }
   /// The end index of the range in the parent node.
-  get endIndex() { return this.$to.indexAfter(this.depth) }
+  get endIndex() {
+    return this.$to.indexAfter(this.depth)
+  }
 }

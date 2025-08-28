@@ -1,11 +1,11 @@
-import {Fragment} from "./fragment"
-import {Slice} from "./replace"
-import {Mark} from "./mark"
-import {Node, TextNode} from "./node"
-import {ContentMatch} from "./content"
-import {ResolvedPos} from "./resolvedpos"
-import {Schema, Attrs, NodeType, MarkType} from "./schema"
-import {DOMNode} from "./dom"
+import { Fragment } from './fragment'
+import { Slice } from './replace'
+import { Mark } from './mark'
+import { Node, TextNode } from './node'
+import { ContentMatch } from './content'
+import { ResolvedPos } from './resolvedpos'
+import { Schema, Attrs, NodeType, MarkType } from './schema'
+import { DOMNode } from './dom'
 
 /// These are the options recognized by the
 /// [`parse`](#model.DOMParser.parse) and
@@ -14,14 +14,14 @@ export interface ParseOptions {
   /// By default, whitespace is collapsed as per HTML's rules. Pass
   /// `true` to preserve whitespace, but normalize newlines to
   /// spaces, and `"full"` to preserve whitespace entirely.
-  preserveWhitespace?: boolean | "full"
+  preserveWhitespace?: boolean | 'full'
 
   /// When given, the parser will, beside parsing the content,
   /// record the document positions of the given DOM positions. It
   /// will do so by writing to the objects, adding a `pos` property
   /// that holds the document position. DOM positions that are not
   /// in the parsed content will not be written to.
-  findPositions?: {node: DOMNode, offset: number, pos?: number}[]
+  findPositions?: { node: DOMNode; offset: number; pos?: number }[]
 
   /// The child node index to start parsing from.
   from?: number
@@ -45,7 +45,7 @@ export interface ParseOptions {
   context?: ResolvedPos
 
   /// @internal
-  ruleFromNode?: (node: DOMNode) => Omit<TagParseRule, "tag"> | null
+  ruleFromNode?: (node: DOMNode) => Omit<TagParseRule, 'tag'> | null
   /// @internal
   topOpen?: boolean
 }
@@ -139,7 +139,7 @@ export interface TagParseRule extends GenericParseRule {
   /// be collapsed, `true` means that whitespace should be preserved
   /// but newlines normalized to spaces, and `"full"` means that
   /// newlines should also be preserved.
-  preserveWhitespace?: boolean | "full"
+  preserveWhitespace?: boolean | 'full'
 }
 
 /// A parse rule targeting a style property.
@@ -169,8 +169,12 @@ export interface StyleParseRule extends GenericParseRule {
 /// style as a ProseMirror node or mark.
 export type ParseRule = TagParseRule | StyleParseRule
 
-function isTagRule(rule: ParseRule): rule is TagParseRule { return (rule as TagParseRule).tag != null }
-function isStyleRule(rule: ParseRule): rule is StyleParseRule { return (rule as StyleParseRule).style != null }
+function isTagRule(rule: ParseRule): rule is TagParseRule {
+  return (rule as TagParseRule).tag != null
+}
+function isStyleRule(rule: ParseRule): rule is StyleParseRule {
+  return (rule as StyleParseRule).style != null
+}
 
 /// A DOM parser represents a strategy for parsing DOM content into a
 /// ProseMirror document conforming to a given schema. Its behavior is
@@ -194,7 +198,7 @@ export class DOMParser {
     /// uses, in order of precedence.
     readonly rules: readonly ParseRule[]
   ) {
-    let matchedStyles: string[] = this.matchedStyles = []
+    let matchedStyles: string[] = (this.matchedStyles = [])
     rules.forEach(rule => {
       if (isTagRule(rule)) {
         this.tags.push(rule)
@@ -236,9 +240,11 @@ export class DOMParser {
   matchTag(dom: DOMNode, context: ParseContext, after?: TagParseRule) {
     for (let i = after ? this.tags.indexOf(after) + 1 : 0; i < this.tags.length; i++) {
       let rule = this.tags[i]
-      if (matches(dom, rule.tag!) &&
-          (rule.namespace === undefined || (dom as HTMLElement).namespaceURI == rule.namespace) &&
-          (!rule.context || context.matchesContext(rule.context))) {
+      if (
+        matches(dom, rule.tag!) &&
+        (rule.namespace === undefined || (dom as HTMLElement).namespaceURI == rule.namespace) &&
+        (!rule.context || context.matchesContext(rule.context))
+      ) {
         if (rule.getAttrs) {
           let result = rule.getAttrs(dom as HTMLElement)
           if (result === false) continue
@@ -252,14 +258,17 @@ export class DOMParser {
   /// @internal
   matchStyle(prop: string, value: string, context: ParseContext, after?: StyleParseRule) {
     for (let i = after ? this.styles.indexOf(after) + 1 : 0; i < this.styles.length; i++) {
-      let rule = this.styles[i], style = rule.style!
-      if (style.indexOf(prop) != 0 ||
-          rule.context && !context.matchesContext(rule.context) ||
-          // Test that the style string either precisely matches the prop,
-          // or has an '=' sign after the prop, followed by the given
-          // value.
-          style.length > prop.length &&
+      let rule = this.styles[i],
+        style = rule.style!
+      if (
+        style.indexOf(prop) != 0 ||
+        (rule.context && !context.matchesContext(rule.context)) ||
+        // Test that the style string either precisely matches the prop,
+        // or has an '=' sign after the prop, followed by the given
+        // value.
+        (style.length > prop.length &&
           (style.charCodeAt(prop.length) != 61 || style.slice(prop.length + 1) != value))
+      )
         continue
       if (rule.getAttrs) {
         let result = rule.getAttrs(value)
@@ -274,9 +283,11 @@ export class DOMParser {
   static schemaRules(schema: Schema) {
     let result: ParseRule[] = []
     function insert(rule: ParseRule) {
-      let priority = rule.priority == null ? 50 : rule.priority, i = 0
+      let priority = rule.priority == null ? 50 : rule.priority,
+        i = 0
       for (; i < result.length; i++) {
-        let next = result[i], nextPriority = next.priority == null ? 50 : next.priority
+        let next = result[i],
+          nextPriority = next.priority == null ? 50 : next.priority
         if (nextPriority < priority) break
       }
       result.splice(i, 0, rule)
@@ -284,19 +295,19 @@ export class DOMParser {
 
     for (let name in schema.marks) {
       let rules = schema.marks[name].spec.parseDOM
-      if (rules) rules.forEach(rule => {
-        insert(rule = copy(rule) as ParseRule)
-        if (!(rule.mark || rule.ignore || (rule as StyleParseRule).clearMark))
-          rule.mark = name
-      })
+      if (rules)
+        rules.forEach(rule => {
+          insert((rule = copy(rule) as ParseRule))
+          if (!(rule.mark || rule.ignore || (rule as StyleParseRule).clearMark)) rule.mark = name
+        })
     }
     for (let name in schema.nodes) {
       let rules = schema.nodes[name].spec.parseDOM
-      if (rules) rules.forEach(rule => {
-        insert(rule = copy(rule) as TagParseRule)
-        if (!((rule as TagParseRule).node || rule.ignore || rule.mark))
-          rule.node = name
-      })
+      if (rules)
+        rules.forEach(rule => {
+          insert((rule = copy(rule) as TagParseRule))
+          if (!((rule as TagParseRule).node || rule.ignore || rule.mark)) rule.node = name
+        })
     }
     return result
   }
@@ -305,32 +316,77 @@ export class DOMParser {
   /// schema's [node specs](#model.NodeSpec.parseDOM), reordered by
   /// [priority](#model.ParseRule.priority).
   static fromSchema(schema: Schema) {
-    return schema.cached.domParser as DOMParser ||
+    return (
+      (schema.cached.domParser as DOMParser) ||
       (schema.cached.domParser = new DOMParser(schema, DOMParser.schemaRules(schema)))
+    )
   }
 }
 
-const blockTags: {[tagName: string]: boolean} = {
-  address: true, article: true, aside: true, blockquote: true, canvas: true,
-  dd: true, div: true, dl: true, fieldset: true, figcaption: true, figure: true,
-  footer: true, form: true, h1: true, h2: true, h3: true, h4: true, h5: true,
-  h6: true, header: true, hgroup: true, hr: true, li: true, noscript: true, ol: true,
-  output: true, p: true, pre: true, section: true, table: true, tfoot: true, ul: true
+const blockTags: { [tagName: string]: boolean } = {
+  address: true,
+  article: true,
+  aside: true,
+  blockquote: true,
+  canvas: true,
+  dd: true,
+  div: true,
+  dl: true,
+  fieldset: true,
+  figcaption: true,
+  figure: true,
+  footer: true,
+  form: true,
+  h1: true,
+  h2: true,
+  h3: true,
+  h4: true,
+  h5: true,
+  h6: true,
+  header: true,
+  hgroup: true,
+  hr: true,
+  li: true,
+  noscript: true,
+  ol: true,
+  output: true,
+  p: true,
+  pre: true,
+  section: true,
+  table: true,
+  tfoot: true,
+  ul: true
 }
 
-const ignoreTags: {[tagName: string]: boolean} = {
-  head: true, noscript: true, object: true, script: true, style: true, title: true
+const ignoreTags: { [tagName: string]: boolean } = {
+  head: true,
+  noscript: true,
+  object: true,
+  script: true,
+  style: true,
+  title: true
 }
 
-const listTags: {[tagName: string]: boolean} = {ol: true, ul: true}
+const listTags: { [tagName: string]: boolean } = { ol: true, ul: true }
 
 // Using a bitfield for node context options
-const OPT_PRESERVE_WS = 1, OPT_PRESERVE_WS_FULL = 2, OPT_OPEN_LEFT = 4
+const OPT_PRESERVE_WS = 1,
+  OPT_PRESERVE_WS_FULL = 2,
+  OPT_OPEN_LEFT = 4
 
-function wsOptionsFor(type: NodeType | null, preserveWhitespace: boolean | "full" | undefined, base: number) {
-  if (preserveWhitespace != null) return (preserveWhitespace ? OPT_PRESERVE_WS : 0) |
-    (preserveWhitespace === "full" ? OPT_PRESERVE_WS_FULL : 0)
-  return type && type.whitespace == "pre" ? OPT_PRESERVE_WS | OPT_PRESERVE_WS_FULL : base & ~OPT_OPEN_LEFT
+function wsOptionsFor(
+  type: NodeType | null,
+  preserveWhitespace: boolean | 'full' | undefined,
+  base: number
+) {
+  if (preserveWhitespace != null)
+    return (
+      (preserveWhitespace ? OPT_PRESERVE_WS : 0) |
+      (preserveWhitespace === 'full' ? OPT_PRESERVE_WS_FULL : 0)
+    )
+  return type && type.whitespace == 'pre'
+    ? OPT_PRESERVE_WS | OPT_PRESERVE_WS_FULL
+    : base & ~OPT_OPEN_LEFT
 }
 
 class NodeContext {
@@ -358,8 +414,9 @@ class NodeContext {
       if (fill) {
         this.match = this.type.contentMatch.matchFragment(fill)!
       } else {
-        let start = this.type.contentMatch, wrap
-        if (wrap = start.findWrapping(node.type)) {
+        let start = this.type.contentMatch,
+          wrap
+        if ((wrap = start.findWrapping(node.type))) {
           this.match = start
           return wrap
         } else {
@@ -371,12 +428,17 @@ class NodeContext {
   }
 
   finish(openEnd: boolean): Node | Fragment {
-    if (!(this.options & OPT_PRESERVE_WS)) { // Strip trailing whitespace
-      let last = this.content[this.content.length - 1], m
+    if (!(this.options & OPT_PRESERVE_WS)) {
+      // Strip trailing whitespace
+      let last = this.content[this.content.length - 1],
+        m
       if (last && last.isText && (m = /[ \t\r\n\u000c]+$/.exec(last.text!))) {
         let text = last as TextNode
         if (last.text!.length == m[0].length) this.content.pop()
-        else this.content[this.content.length - 1] = text.withText(text.text.slice(0, text.text.length - m[0].length))
+        else
+          this.content[this.content.length - 1] = text.withText(
+            text.text.slice(0, text.text.length - m[0].length)
+          )
       }
     }
     let content = Fragment.from(this.content)
@@ -392,9 +454,12 @@ class NodeContext {
   }
 }
 
+/**
+ * 维护一个 nodes 栈，栈中的每个元素 (NodeContext) 代表一个正在构建的 ProseMirror 节点.
+ */
 class ParseContext {
   open: number = 0
-  find: {node: DOMNode, offset: number, pos?: number}[] | undefined
+  find: { node: DOMNode; offset: number; pos?: number }[] | undefined
   needsBlock: boolean
   nodes: NodeContext[]
   localPreserveWS = false
@@ -406,15 +471,29 @@ class ParseContext {
     readonly options: ParseOptions,
     readonly isOpen: boolean
   ) {
-    let topNode = options.topNode, topContext: NodeContext
-    let topOptions = wsOptionsFor(null, options.preserveWhitespace, 0) | (isOpen ? OPT_OPEN_LEFT : 0)
+    let topNode = options.topNode,
+      topContext: NodeContext
+    let topOptions =
+      wsOptionsFor(null, options.preserveWhitespace, 0) | (isOpen ? OPT_OPEN_LEFT : 0)
     if (topNode)
-      topContext = new NodeContext(topNode.type, topNode.attrs, Mark.none, true,
-                                   options.topMatch || topNode.type.contentMatch, topOptions)
-    else if (isOpen)
-      topContext = new NodeContext(null, null, Mark.none, true, null, topOptions)
+      topContext = new NodeContext(
+        topNode.type,
+        topNode.attrs,
+        Mark.none,
+        true,
+        options.topMatch || topNode.type.contentMatch,
+        topOptions
+      )
+    else if (isOpen) topContext = new NodeContext(null, null, Mark.none, true, null, topOptions)
     else
-      topContext = new NodeContext(parser.schema.topNodeType, null, Mark.none, true, null, topOptions)
+      topContext = new NodeContext(
+        parser.schema.topNodeType,
+        null,
+        Mark.none,
+        true,
+        null,
+        topOptions
+      )
     this.nodes = [topContext]
     this.find = options.findPositions
     this.needsBlock = false
@@ -434,28 +513,31 @@ class ParseContext {
 
   addTextNode(dom: Text, marks: readonly Mark[]) {
     let value = dom.nodeValue!
-    let top = this.top, preserveWS = (top.options & OPT_PRESERVE_WS_FULL) ? "full"
-      : this.localPreserveWS || (top.options & OPT_PRESERVE_WS) > 0
-    if (preserveWS === "full" ||
-        top.inlineContext(dom) ||
-        /[^ \t\r\n\u000c]/.test(value)) {
+    let top = this.top,
+      preserveWS =
+        top.options & OPT_PRESERVE_WS_FULL
+          ? 'full'
+          : this.localPreserveWS || (top.options & OPT_PRESERVE_WS) > 0
+    if (preserveWS === 'full' || top.inlineContext(dom) || /[^ \t\r\n\u000c]/.test(value)) {
       if (!preserveWS) {
-        value = value.replace(/[ \t\r\n\u000c]+/g, " ")
+        value = value.replace(/[ \t\r\n\u000c]+/g, ' ')
         // If this starts with whitespace, and there is no node before it, or
         // a hard break, or a text node that ends with whitespace, strip the
         // leading space.
         if (/^[ \t\r\n\u000c]/.test(value) && this.open == this.nodes.length - 1) {
           let nodeBefore = top.content[top.content.length - 1]
           let domNodeBefore = dom.previousSibling
-          if (!nodeBefore ||
-              (domNodeBefore && domNodeBefore.nodeName == 'BR') ||
-              (nodeBefore.isText && /[ \t\r\n\u000c]$/.test(nodeBefore.text!)))
+          if (
+            !nodeBefore ||
+            (domNodeBefore && domNodeBefore.nodeName == 'BR') ||
+            (nodeBefore.isText && /[ \t\r\n\u000c]$/.test(nodeBefore.text!))
+          )
             value = value.slice(1)
         }
-      } else if (preserveWS !== "full") {
-        value = value.replace(/\r?\n|\r/g, " ")
+      } else if (preserveWS !== 'full') {
+        value = value.replace(/\r?\n|\r/g, ' ')
       } else {
-        value = value.replace(/\r\n?/g, "\n")
+        value = value.replace(/\r\n?/g, '\n')
       }
       if (value) this.insertNode(this.parser.schema.text(value), marks, !/\S/.test(value))
       this.findInText(dom)
@@ -467,21 +549,24 @@ class ParseContext {
   // Try to find a handler for the given tag and use that to parse. If
   // none is found, the element's content nodes are added directly.
   addElement(dom: HTMLElement, marks: readonly Mark[], matchAfter?: TagParseRule) {
-    let outerWS = this.localPreserveWS, top = this.top
-    if (dom.tagName == "PRE" || /pre/.test(dom.style && dom.style.whiteSpace))
+    let outerWS = this.localPreserveWS,
+      top = this.top
+    if (dom.tagName == 'PRE' || /pre/.test(dom.style && dom.style.whiteSpace))
       this.localPreserveWS = true
-    let name = dom.nodeName.toLowerCase(), ruleID: TagParseRule | undefined
+    let name = dom.nodeName.toLowerCase(),
+      ruleID: TagParseRule | undefined
     if (listTags.hasOwnProperty(name) && this.parser.normalizeLists) normalizeList(dom)
-    let rule = (this.options.ruleFromNode && this.options.ruleFromNode(dom)) ||
-        (ruleID = this.parser.matchTag(dom, this, matchAfter))
-    out:
-    if (rule ? rule.ignore : ignoreTags.hasOwnProperty(name)) {
+    let rule =
+      (this.options.ruleFromNode && this.options.ruleFromNode(dom)) ||
+      (ruleID = this.parser.matchTag(dom, this, matchAfter))
+    out: if (rule ? rule.ignore : ignoreTags.hasOwnProperty(name)) {
       this.findInside(dom)
       this.ignoreFallback(dom, marks)
     } else if (!rule || rule.skip || rule.closeParent) {
       if (rule && rule.closeParent) this.open = Math.max(0, this.open - 1)
       else if (rule && (rule.skip as any).nodeType) dom = rule.skip as any as HTMLElement
-      let sync, oldNeedsBlock = this.needsBlock
+      let sync,
+        oldNeedsBlock = this.needsBlock
       if (blockTags.hasOwnProperty(name)) {
         if (top.content.length && top.content[0].isInline && this.open) {
           this.open--
@@ -500,22 +585,27 @@ class ParseContext {
     } else {
       let innerMarks = this.readStyles(dom, marks)
       if (innerMarks)
-        this.addElementByRule(dom, rule as TagParseRule, innerMarks, rule!.consuming === false ? ruleID : undefined)
+        this.addElementByRule(
+          dom,
+          rule as TagParseRule,
+          innerMarks,
+          rule!.consuming === false ? ruleID : undefined
+        )
     }
     this.localPreserveWS = outerWS
   }
 
   // Called for leaf DOM nodes that would otherwise be ignored
   leafFallback(dom: DOMNode, marks: readonly Mark[]) {
-    if (dom.nodeName == "BR" && this.top.type && this.top.type.inlineContent)
-      this.addTextNode(dom.ownerDocument!.createTextNode("\n"), marks)
+    if (dom.nodeName == 'BR' && this.top.type && this.top.type.inlineContent)
+      this.addTextNode(dom.ownerDocument!.createTextNode('\n'), marks)
   }
 
   // Called for ignored nodes
   ignoreFallback(dom: DOMNode, marks: readonly Mark[]) {
     // Ignored BR nodes should at least create an inline context
-    if (dom.nodeName == "BR" && (!this.top.type || !this.top.type.inlineContent))
-      this.findPlace(this.parser.schema.text("-"), marks, true)
+    if (dom.nodeName == 'BR' && (!this.top.type || !this.top.type.inlineContent))
+      this.findPlace(this.parser.schema.text('-'), marks, true)
   }
 
   // Run any style parser associated with the node's styles. Either
@@ -528,27 +618,33 @@ class ParseContext {
     // text-decoration-line, text-decoration-color, etc), we directly
     // query the styles mentioned in our rules instead of iterating
     // over the items.
-    if (styles && styles.length) for (let i = 0; i < this.parser.matchedStyles.length; i++) {
-      let name = this.parser.matchedStyles[i], value = styles.getPropertyValue(name)
-      if (value) for (let after: StyleParseRule | undefined = undefined;;) {
-        let rule = this.parser.matchStyle(name, value, this, after)
-        if (!rule) break
-        if (rule.ignore) return null
-        if (rule.clearMark)
-          marks = marks.filter(m => !rule!.clearMark!(m))
-        else
-          marks = marks.concat(this.parser.schema.marks[rule.mark!].create(rule.attrs))
-        if (rule.consuming === false) after = rule
-        else break
+    if (styles && styles.length)
+      for (let i = 0; i < this.parser.matchedStyles.length; i++) {
+        let name = this.parser.matchedStyles[i],
+          value = styles.getPropertyValue(name)
+        if (value)
+          for (let after: StyleParseRule | undefined = undefined; ; ) {
+            let rule = this.parser.matchStyle(name, value, this, after)
+            if (!rule) break
+            if (rule.ignore) return null
+            if (rule.clearMark) marks = marks.filter(m => !rule!.clearMark!(m))
+            else marks = marks.concat(this.parser.schema.marks[rule.mark!].create(rule.attrs))
+            if (rule.consuming === false) after = rule
+            else break
+          }
       }
-    }
     return marks
   }
 
   // Look up a handler for the given node. If none are found, return
   // false. Otherwise, apply it, use its return value to drive the way
   // the node's content is wrapped, and return true.
-  addElementByRule(dom: HTMLElement, rule: TagParseRule, marks: readonly Mark[], continueAfter?: TagParseRule) {
+  addElementByRule(
+    dom: HTMLElement,
+    rule: TagParseRule,
+    marks: readonly Mark[],
+    continueAfter?: TagParseRule
+  ) {
     let sync, nodeType
     if (rule.node) {
       nodeType = this.parser.schema.nodes[rule.node]
@@ -558,7 +654,7 @@ class ParseContext {
           sync = true
           marks = inner
         }
-      } else if (!this.insertNode(nodeType.create(rule.attrs), marks, dom.nodeName == "BR")) {
+      } else if (!this.insertNode(nodeType.create(rule.attrs), marks, dom.nodeName == 'BR')) {
         this.leafFallback(dom, marks)
       }
     } else {
@@ -576,8 +672,9 @@ class ParseContext {
       rule.getContent(dom, this.parser.schema).forEach(node => this.insertNode(node, marks, false))
     } else {
       let contentDOM = dom
-      if (typeof rule.contentElement == "string") contentDOM = dom.querySelector(rule.contentElement)!
-      else if (typeof rule.contentElement == "function") contentDOM = rule.contentElement(dom)
+      if (typeof rule.contentElement == 'string')
+        contentDOM = dom.querySelector(rule.contentElement)!
+      else if (typeof rule.contentElement == 'function') contentDOM = rule.contentElement(dom)
       else if (rule.contentElement) contentDOM = rule.contentElement
       this.findAround(dom, contentDOM, true)
       this.addAll(contentDOM, marks)
@@ -591,9 +688,12 @@ class ParseContext {
   // synchronize after every block element.
   addAll(parent: DOMNode, marks: readonly Mark[], startIndex?: number, endIndex?: number) {
     let index = startIndex || 0
-    for (let dom = startIndex ? parent.childNodes[startIndex] : parent.firstChild,
-             end = endIndex == null ? null : parent.childNodes[endIndex];
-         dom != end; dom = dom!.nextSibling, ++index) {
+    for (
+      let dom = startIndex ? parent.childNodes[startIndex] : parent.firstChild,
+        end = endIndex == null ? null : parent.childNodes[endIndex];
+      dom != end;
+      dom = dom!.nextSibling, ++index
+    ) {
       this.findAtPoint(parent, index)
       this.addDOM(dom!, marks)
     }
@@ -620,8 +720,7 @@ class ParseContext {
     }
     if (!route) return null
     this.sync(sync!)
-    for (let i = 0; i < route.length; i++)
-      marks = this.enterInner(route[i], null, marks, false)
+    for (let i = 0; i < route.length; i++) marks = this.enterInner(route[i], null, marks, false)
     return marks
   }
 
@@ -648,20 +747,30 @@ class ParseContext {
 
   // Try to start a node of the given type, adjusting the context when
   // necessary.
-  enter(type: NodeType, attrs: Attrs | null, marks: readonly Mark[], preserveWS?: boolean | "full") {
+  enter(
+    type: NodeType,
+    attrs: Attrs | null,
+    marks: readonly Mark[],
+    preserveWS?: boolean | 'full'
+  ) {
     let innerMarks = this.findPlace(type.create(attrs), marks, false)
     if (innerMarks) innerMarks = this.enterInner(type, attrs, marks, true, preserveWS)
     return innerMarks
   }
 
   // Open a node of the given type
-  enterInner(type: NodeType, attrs: Attrs | null, marks: readonly Mark[],
-             solid: boolean = false, preserveWS?: boolean | "full") {
+  enterInner(
+    type: NodeType,
+    attrs: Attrs | null,
+    marks: readonly Mark[],
+    solid: boolean = false,
+    preserveWS?: boolean | 'full'
+  ) {
     this.closeExtra()
     let top = this.top
     top.match = top.match && top.match.matchType(type)
     let options = wsOptionsFor(type, preserveWS, top.options)
-    if ((top.options & OPT_OPEN_LEFT) && top.content.length == 0) options |= OPT_OPEN_LEFT
+    if (top.options & OPT_OPEN_LEFT && top.content.length == 0) options |= OPT_OPEN_LEFT
     let applyMarks = Mark.none
     marks = marks.filter(m => {
       if (top.type ? top.type.allowsMarkType(m.type) : markMayApply(m.type, type)) {
@@ -680,7 +789,8 @@ class ParseContext {
   closeExtra(openEnd = false) {
     let i = this.nodes.length - 1
     if (i > this.open) {
-      for (; i > this.open; i--) this.nodes[i - 1].content.push(this.nodes[i].finish(openEnd) as Node)
+      for (; i > this.open; i--)
+        this.nodes[i - 1].content.push(this.nodes[i].finish(openEnd) as Node)
       this.nodes.length = this.open + 1
     }
   }
@@ -708,67 +818,73 @@ class ParseContext {
     let pos = 0
     for (let i = this.open; i >= 0; i--) {
       let content = this.nodes[i].content
-      for (let j = content.length - 1; j >= 0; j--)
-        pos += content[j].nodeSize
+      for (let j = content.length - 1; j >= 0; j--) pos += content[j].nodeSize
       if (i) pos++
     }
     return pos
   }
 
   findAtPoint(parent: DOMNode, offset: number) {
-    if (this.find) for (let i = 0; i < this.find.length; i++) {
-      if (this.find[i].node == parent && this.find[i].offset == offset)
-        this.find[i].pos = this.currentPos
-    }
+    if (this.find)
+      for (let i = 0; i < this.find.length; i++) {
+        if (this.find[i].node == parent && this.find[i].offset == offset)
+          this.find[i].pos = this.currentPos
+      }
   }
 
   findInside(parent: DOMNode) {
-    if (this.find) for (let i = 0; i < this.find.length; i++) {
-      if (this.find[i].pos == null && parent.nodeType == 1 && parent.contains(this.find[i].node))
-        this.find[i].pos = this.currentPos
-    }
+    if (this.find)
+      for (let i = 0; i < this.find.length; i++) {
+        if (this.find[i].pos == null && parent.nodeType == 1 && parent.contains(this.find[i].node))
+          this.find[i].pos = this.currentPos
+      }
   }
 
   findAround(parent: DOMNode, content: DOMNode, before: boolean) {
-    if (parent != content && this.find) for (let i = 0; i < this.find.length; i++) {
-      if (this.find[i].pos == null && parent.nodeType == 1 && parent.contains(this.find[i].node)) {
-        let pos = content.compareDocumentPosition(this.find[i].node)
-        if (pos & (before ? 2 : 4))
-          this.find[i].pos = this.currentPos
+    if (parent != content && this.find)
+      for (let i = 0; i < this.find.length; i++) {
+        if (
+          this.find[i].pos == null &&
+          parent.nodeType == 1 &&
+          parent.contains(this.find[i].node)
+        ) {
+          let pos = content.compareDocumentPosition(this.find[i].node)
+          if (pos & (before ? 2 : 4)) this.find[i].pos = this.currentPos
+        }
       }
-    }
   }
 
   findInText(textNode: Text) {
-    if (this.find) for (let i = 0; i < this.find.length; i++) {
-      if (this.find[i].node == textNode)
-        this.find[i].pos = this.currentPos - (textNode.nodeValue!.length - this.find[i].offset)
-    }
+    if (this.find)
+      for (let i = 0; i < this.find.length; i++) {
+        if (this.find[i].node == textNode)
+          this.find[i].pos = this.currentPos - (textNode.nodeValue!.length - this.find[i].offset)
+      }
   }
 
   // Determines whether the given context string matches this context.
   matchesContext(context: string) {
-    if (context.indexOf("|") > -1)
-      return context.split(/\s*\|\s*/).some(this.matchesContext, this)
+    if (context.indexOf('|') > -1) return context.split(/\s*\|\s*/).some(this.matchesContext, this)
 
-    let parts = context.split("/")
+    let parts = context.split('/')
     let option = this.options.context
     let useRoot = !this.isOpen && (!option || option.parent.type == this.nodes[0].type)
     let minDepth = -(option ? option.depth + 1 : 0) + (useRoot ? 0 : 1)
     let match = (i: number, depth: number) => {
       for (; i >= 0; i--) {
         let part = parts[i]
-        if (part == "") {
+        if (part == '') {
           if (i == parts.length - 1 || i == 0) continue
-          for (; depth >= minDepth; depth--)
-            if (match(i - 1, depth)) return true
+          for (; depth >= minDepth; depth--) if (match(i - 1, depth)) return true
           return false
         } else {
-          let next = depth > 0 || (depth == 0 && useRoot) ? this.nodes[depth].type
-              : option && depth >= minDepth ? option.node(depth - minDepth).type
+          let next =
+            depth > 0 || (depth == 0 && useRoot)
+              ? this.nodes[depth].type
+              : option && depth >= minDepth
+              ? option.node(depth - minDepth).type
               : null
-          if (!next || (next.name != part && !next.isInGroup(part)))
-            return false
+          if (!next || (next.name != part && !next.isInGroup(part))) return false
           depth--
         }
       }
@@ -779,10 +895,11 @@ class ParseContext {
 
   textblockFromContext() {
     let $context = this.options.context
-    if ($context) for (let d = $context.depth; d >= 0; d--) {
-      let deflt = $context.node(d).contentMatchAt($context.indexAfter(d)).defaultType
-      if (deflt && deflt.isTextblock && deflt.defaultAttrs) return deflt
-    }
+    if ($context)
+      for (let d = $context.depth; d >= 0; d--) {
+        let deflt = $context.node(d).contentMatchAt($context.indexAfter(d)).defaultType
+        if (deflt && deflt.isTextblock && deflt.defaultAttrs) return deflt
+      }
     for (let name in this.parser.schema.nodes) {
       let type = this.parser.schema.nodes[name]
       if (type.isTextblock && type.defaultAttrs) return type
@@ -794,12 +911,16 @@ class ParseContext {
 // tools and allowed by browsers to mean that the nested list is
 // actually part of the list item above it.
 function normalizeList(dom: DOMNode) {
-  for (let child = dom.firstChild, prevItem: ChildNode | null = null; child; child = child.nextSibling) {
+  for (
+    let child = dom.firstChild, prevItem: ChildNode | null = null;
+    child;
+    child = child.nextSibling
+  ) {
     let name = child.nodeType == 1 ? child.nodeName.toLowerCase() : null
     if (name && listTags.hasOwnProperty(name) && prevItem) {
       prevItem.appendChild(child)
       child = prevItem
-    } else if (name == "li") {
+    } else if (name == 'li') {
       prevItem = child
     } else if (name) {
       prevItem = null
@@ -809,11 +930,16 @@ function normalizeList(dom: DOMNode) {
 
 // Apply a CSS selector.
 function matches(dom: any, selector: string): boolean {
-  return (dom.matches || dom.msMatchesSelector || dom.webkitMatchesSelector || dom.mozMatchesSelector).call(dom, selector)
+  return (
+    dom.matches ||
+    dom.msMatchesSelector ||
+    dom.webkitMatchesSelector ||
+    dom.mozMatchesSelector
+  ).call(dom, selector)
 }
 
-function copy(obj: {[prop: string]: any}) {
-  let copy: {[prop: string]: any} = {}
+function copy(obj: { [prop: string]: any }) {
+  let copy: { [prop: string]: any } = {}
   for (let prop in obj) copy[prop] = obj[prop]
   return copy
 }
@@ -826,14 +952,15 @@ function markMayApply(markType: MarkType, nodeType: NodeType) {
   for (let name in nodes) {
     let parent = nodes[name]
     if (!parent.allowsMarkType(markType)) continue
-    let seen: ContentMatch[] = [], scan = (match: ContentMatch) => {
-      seen.push(match)
-      for (let i = 0; i < match.edgeCount; i++) {
-        let {type, next} = match.edge(i)
-        if (type == nodeType) return true
-        if (seen.indexOf(next) < 0 && scan(next)) return true
+    let seen: ContentMatch[] = [],
+      scan = (match: ContentMatch) => {
+        seen.push(match)
+        for (let i = 0; i < match.edgeCount; i++) {
+          let { type, next } = match.edge(i)
+          if (type == nodeType) return true
+          if (seen.indexOf(next) < 0 && scan(next)) return true
+        }
       }
-    }
     if (scan(parent.contentMatch)) return true
   }
 }

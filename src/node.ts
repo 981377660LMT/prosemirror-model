@@ -1,9 +1,9 @@
-import {Fragment} from "./fragment"
-import {Mark} from "./mark"
-import {Schema, NodeType, Attrs, MarkType} from "./schema"
-import {Slice, replace} from "./replace"
-import {ResolvedPos} from "./resolvedpos"
-import {compareDeep} from "./comparedeep"
+import { Fragment } from './fragment'
+import { Mark } from './mark'
+import { Schema, NodeType, Attrs, MarkType } from './schema'
+import { Slice, replace } from './replace'
+import { ResolvedPos } from './resolvedpos'
+import { compareDeep } from './comparedeep'
 
 const emptyAttrs: Attrs = Object.create(null)
 
@@ -41,7 +41,9 @@ export class Node {
   readonly content: Fragment
 
   /// The array of this node's child nodes.
-  get children() { return this.content.content }
+  get children() {
+    return this.content.content
+  }
 
   /// For text nodes, this contains the node's text content.
   readonly text: string | undefined
@@ -51,33 +53,46 @@ export class Node {
   /// amount of characters. For other leaf nodes, it is one. For
   /// non-leaf nodes, it is the size of the content plus two (the
   /// start and end token).
-  get nodeSize(): number { return this.isLeaf ? 1 : 2 + this.content.size }
+  get nodeSize(): number {
+    return this.isLeaf ? 1 : 2 + this.content.size
+  }
 
   /// The number of children that the node has.
-  get childCount() { return this.content.childCount }
+  get childCount() {
+    return this.content.childCount
+  }
 
   /// Get the child node at the given index. Raises an error when the
   /// index is out of range.
-  child(index: number) { return this.content.child(index) }
+  child(index: number) {
+    return this.content.child(index)
+  }
 
   /// Get the child node at the given index, if it exists.
-  maybeChild(index: number) { return this.content.maybeChild(index) }
+  maybeChild(index: number) {
+    return this.content.maybeChild(index)
+  }
 
   /// Call `f` for every child node, passing the node, its offset
   /// into this parent node, and its index.
-  forEach(f: (node: Node, offset: number, index: number) => void) { this.content.forEach(f) }
+  forEach(f: (node: Node, offset: number, index: number) => void) {
+    this.content.forEach(f)
+  }
 
   /// Invoke a callback for all descendant nodes recursively between
   /// the given two positions that are relative to start of this
   /// node's content. The callback is invoked with the node, its
-  /// position relative to the original node (method receiver), 
+  /// position relative to the original node (method receiver),
   /// its parent node, and its child index. When the callback returns
   /// false for a given node, that node's children will not be
-  /// recursed over. The last parameter can be used to specify a 
+  /// recursed over. The last parameter can be used to specify a
   /// starting position to count from.
-  nodesBetween(from: number, to: number,
-               f: (node: Node, pos: number, parent: Node | null, index: number) => void | boolean,
-               startPos = 0) {
+  nodesBetween(
+    from: number,
+    to: number,
+    f: (node: Node, pos: number, parent: Node | null, index: number) => void | boolean,
+    startPos = 0
+  ) {
     this.content.nodesBetween(from, to, f, startPos, this)
   }
 
@@ -90,9 +105,9 @@ export class Node {
   /// Concatenates all the text nodes found in this fragment and its
   /// children.
   get textContent() {
-    return (this.isLeaf && this.type.spec.leafText)
+    return this.isLeaf && this.type.spec.leafText
       ? this.type.spec.leafText(this)
-      : this.textBetween(0, this.content.size, "")
+      : this.textBetween(0, this.content.size, '')
   }
 
   /// Get all text between positions `from` and `to`. When
@@ -100,18 +115,26 @@ export class Node {
   /// from different block nodes. If `leafText` is given, it'll be
   /// inserted for every non-text leaf node encountered, otherwise
   /// [`leafText`](#model.NodeSpec^leafText) will be used.
-  textBetween(from: number, to: number, blockSeparator?: string | null,
-              leafText?: null | string | ((leafNode: Node) => string)) {
+  textBetween(
+    from: number,
+    to: number,
+    blockSeparator?: string | null,
+    leafText?: null | string | ((leafNode: Node) => string)
+  ) {
     return this.content.textBetween(from, to, blockSeparator, leafText)
   }
 
   /// Returns this node's first child, or `null` if there are no
   /// children.
-  get firstChild(): Node | null { return this.content.firstChild }
+  get firstChild(): Node | null {
+    return this.content.firstChild
+  }
 
   /// Returns this node's last child, or `null` if there are no
   /// children.
-  get lastChild(): Node | null { return this.content.lastChild }
+  get lastChild(): Node | null {
+    return this.content.lastChild
+  }
 
   /// Test whether two nodes represent the same piece of document.
   eq(other: Node) {
@@ -127,9 +150,11 @@ export class Node {
   /// Check whether this node's markup correspond to the given type,
   /// attributes, and marks.
   hasMarkup(type: NodeType, attrs?: Attrs | null, marks?: readonly Mark[]): boolean {
-    return this.type == type &&
+    return (
+      this.type == type &&
       compareDeep(this.attrs, attrs || type.defaultAttrs || emptyAttrs) &&
       Mark.sameSet(this.marks, marks || Mark.none)
+    )
   }
 
   /// Create a new node with the same markup as this node, containing
@@ -158,9 +183,11 @@ export class Node {
   slice(from: number, to: number = this.content.size, includeParents = false) {
     if (from == to) return Slice.empty
 
-    let $from = this.resolve(from), $to = this.resolve(to)
+    let $from = this.resolve(from),
+      $to = this.resolve(to)
     let depth = includeParents ? 0 : $from.sharedDepth(to)
-    let start = $from.start(depth), node = $from.node(depth)
+    let start = $from.start(depth),
+      node = $from.node(depth)
     let content = node.content.cut($from.pos - start, $to.pos - start)
     return new Slice(content, $from.depth - depth, $to.depth - depth)
   }
@@ -177,8 +204,8 @@ export class Node {
 
   /// Find the node directly after the given position.
   nodeAt(pos: number): Node | null {
-    for (let node: Node | null = this;;) {
-      let {index, offset} = node.content.findIndex(pos)
+    for (let node: Node | null = this; ; ) {
+      let { index, offset } = node.content.findIndex(pos)
       node = node.maybeChild(index)
       if (!node) return null
       if (offset == pos || node.isText) return node
@@ -189,81 +216,99 @@ export class Node {
   /// Find the (direct) child node after the given offset, if any,
   /// and return it along with its index and offset relative to this
   /// node.
-  childAfter(pos: number): {node: Node | null, index: number, offset: number} {
-    let {index, offset} = this.content.findIndex(pos)
-    return {node: this.content.maybeChild(index), index, offset}
+  childAfter(pos: number): { node: Node | null; index: number; offset: number } {
+    let { index, offset } = this.content.findIndex(pos)
+    return { node: this.content.maybeChild(index), index, offset }
   }
 
   /// Find the (direct) child node before the given offset, if any,
   /// and return it along with its index and offset relative to this
   /// node.
-  childBefore(pos: number): {node: Node | null, index: number, offset: number} {
-    if (pos == 0) return {node: null, index: 0, offset: 0}
-    let {index, offset} = this.content.findIndex(pos)
-    if (offset < pos) return {node: this.content.child(index), index, offset}
+  childBefore(pos: number): { node: Node | null; index: number; offset: number } {
+    if (pos == 0) return { node: null, index: 0, offset: 0 }
+    let { index, offset } = this.content.findIndex(pos)
+    if (offset < pos) return { node: this.content.child(index), index, offset }
     let node = this.content.child(index - 1)
-    return {node, index: index - 1, offset: offset - node.nodeSize}
+    return { node, index: index - 1, offset: offset - node.nodeSize }
   }
 
   /// Resolve the given position in the document, returning an
   /// [object](#model.ResolvedPos) with information about its context.
-  resolve(pos: number) { return ResolvedPos.resolveCached(this, pos) }
+  resolve(pos: number) {
+    return ResolvedPos.resolveCached(this, pos)
+  }
 
   /// @internal
-  resolveNoCache(pos: number) { return ResolvedPos.resolve(this, pos) }
+  resolveNoCache(pos: number) {
+    return ResolvedPos.resolve(this, pos)
+  }
 
   /// Test whether a given mark or mark type occurs in this document
   /// between the two given positions.
   rangeHasMark(from: number, to: number, type: Mark | MarkType): boolean {
     let found = false
-    if (to > from) this.nodesBetween(from, to, node => {
-      if (type.isInSet(node.marks)) found = true
-      return !found
-    })
+    if (to > from)
+      this.nodesBetween(from, to, node => {
+        if (type.isInSet(node.marks)) found = true
+        return !found
+      })
     return found
   }
 
   /// True when this is a block (non-inline node)
-  get isBlock() { return this.type.isBlock }
+  get isBlock() {
+    return this.type.isBlock
+  }
 
   /// True when this is a textblock node, a block node with inline
   /// content.
-  get isTextblock() { return this.type.isTextblock }
+  get isTextblock() {
+    return this.type.isTextblock
+  }
 
   /// True when this node allows inline content.
-  get inlineContent() { return this.type.inlineContent }
+  get inlineContent() {
+    return this.type.inlineContent
+  }
 
   /// True when this is an inline node (a text node or a node that can
   /// appear among text).
-  get isInline() { return this.type.isInline }
+  get isInline() {
+    return this.type.isInline
+  }
 
   /// True when this is a text node.
-  get isText() { return this.type.isText }
+  get isText() {
+    return this.type.isText
+  }
 
   /// True when this is a leaf node.
-  get isLeaf() { return this.type.isLeaf }
+  get isLeaf() {
+    return this.type.isLeaf
+  }
 
   /// True when this is an atom, i.e. when it does not have directly
   /// editable content. This is usually the same as `isLeaf`, but can
   /// be configured with the [`atom` property](#model.NodeSpec.atom)
   /// on a node's spec (typically used when the node is displayed as
   /// an uneditable [node view](#view.NodeView)).
-  get isAtom() { return this.type.isAtom }
+  get isAtom() {
+    return this.type.isAtom
+  }
 
   /// Return a string representation of this node for debugging
   /// purposes.
   toString(): string {
     if (this.type.spec.toDebugString) return this.type.spec.toDebugString(this)
     let name = this.type.name
-    if (this.content.size)
-      name += "(" + this.content.toStringInner() + ")"
+    if (this.content.size) name += '(' + this.content.toStringInner() + ')'
     return wrapMarks(this.marks, name)
   }
 
   /// Get the content match in this node at the given index.
   contentMatchAt(index: number) {
     let match = this.type.contentMatch.matchFragment(this.content, 0, index)
-    if (!match) throw new Error("Called contentMatchAt on a node with invalid content")
+    if (!match) throw new Error('Called contentMatchAt on a node with invalid content')
     return match
   }
 
@@ -272,11 +317,18 @@ export class Node {
   /// to the empty fragment) would leave the node's content valid. You
   /// can optionally pass `start` and `end` indices into the
   /// replacement fragment.
-  canReplace(from: number, to: number, replacement = Fragment.empty, start = 0, end = replacement.childCount) {
+  canReplace(
+    from: number,
+    to: number,
+    replacement = Fragment.empty,
+    start = 0,
+    end = replacement.childCount
+  ) {
     let one = this.contentMatchAt(from).matchFragment(replacement, start, end)
     let two = one && one.matchFragment(this.content, to)
     if (!two || !two.validEnd) return false
-    for (let i = start; i < end; i++) if (!this.type.allowsMarks(replacement.child(i).marks)) return false
+    for (let i = start; i < end; i++)
+      if (!this.type.allowsMarks(replacement.child(i).marks)) return false
     return true
   }
 
@@ -310,34 +362,36 @@ export class Node {
       copy = mark.addToSet(copy)
     }
     if (!Mark.sameSet(copy, this.marks))
-      throw new RangeError(`Invalid collection of marks for node ${this.type.name}: ${this.marks.map(m => m.type.name)}`)
+      throw new RangeError(
+        `Invalid collection of marks for node ${this.type.name}: ${this.marks.map(
+          m => m.type.name
+        )}`
+      )
     this.content.forEach(node => node.check())
   }
 
   /// Return a JSON-serializeable representation of this node.
   toJSON(): any {
-    let obj: any = {type: this.type.name}
+    let obj: any = { type: this.type.name }
     for (let _ in this.attrs) {
       obj.attrs = this.attrs
       break
     }
-    if (this.content.size)
-      obj.content = this.content.toJSON()
-    if (this.marks.length)
-      obj.marks = this.marks.map(n => n.toJSON())
+    if (this.content.size) obj.content = this.content.toJSON()
+    if (this.marks.length) obj.marks = this.marks.map(n => n.toJSON())
     return obj
   }
 
   /// Deserialize a node from its JSON representation.
   static fromJSON(schema: Schema, json: any): Node {
-    if (!json) throw new RangeError("Invalid input for Node.fromJSON")
+    if (!json) throw new RangeError('Invalid input for Node.fromJSON')
     let marks: Mark[] | undefined = undefined
     if (json.marks) {
-      if (!Array.isArray(json.marks)) throw new RangeError("Invalid mark data for Node.fromJSON")
+      if (!Array.isArray(json.marks)) throw new RangeError('Invalid mark data for Node.fromJSON')
       marks = json.marks.map(schema.markFromJSON)
     }
-    if (json.type == "text") {
-      if (typeof json.text != "string") throw new RangeError("Invalid text node in JSON")
+    if (json.type == 'text') {
+      if (typeof json.text != 'string') throw new RangeError('Invalid text node in JSON')
       return schema.text(json.text, marks)
     }
     let content = Fragment.fromJSON(schema, json.content)
@@ -355,7 +409,7 @@ export class TextNode extends Node {
   /// @internal
   constructor(type: NodeType, attrs: Attrs, content: string, marks?: readonly Mark[]) {
     super(type, attrs, null, marks)
-    if (!content) throw new RangeError("Empty text nodes are not allowed")
+    if (!content) throw new RangeError('Empty text nodes are not allowed')
     this.text = content
   }
 
@@ -364,11 +418,17 @@ export class TextNode extends Node {
     return wrapMarks(this.marks, JSON.stringify(this.text))
   }
 
-  get textContent() { return this.text }
+  get textContent() {
+    return this.text
+  }
 
-  textBetween(from: number, to: number) { return this.text.slice(from, to) }
+  textBetween(from: number, to: number) {
+    return this.text.slice(from, to)
+  }
 
-  get nodeSize() { return this.text.length }
+  get nodeSize() {
+    return this.text.length
+  }
 
   mark(marks: readonly Mark[]) {
     return marks == this.marks ? this : new TextNode(this.type, this.attrs, this.text, marks)
@@ -396,7 +456,6 @@ export class TextNode extends Node {
 }
 
 function wrapMarks(marks: readonly Mark[], str: string) {
-  for (let i = marks.length - 1; i >= 0; i--)
-    str = marks[i].type.name + "(" + str + ")"
+  for (let i = marks.length - 1; i >= 0; i--) str = marks[i].type.name + '(' + str + ')'
   return str
 }

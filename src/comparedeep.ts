@@ -1,7 +1,6 @@
 export function compareDeep(a: any, b: any) {
   if (a === b) return true
-  if (!(a && typeof a == "object") ||
-      !(b && typeof b == "object")) return false
+  if (!(a && typeof a == 'object') || !(b && typeof b == 'object')) return false
   let array = Array.isArray(a)
   if (Array.isArray(b) != array) return false
   if (array) {

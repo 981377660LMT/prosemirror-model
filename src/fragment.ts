@@ -1,6 +1,6 @@
-import {findDiffStart, findDiffEnd} from "./diff"
-import {Node, TextNode} from "./node"
-import {Schema} from "./schema"
+import { findDiffStart, findDiffEnd } from './diff'
+import { Node, TextNode } from './node'
+import { Schema } from './schema'
 
 /// A fragment represents a node's collection of child nodes.
 ///
@@ -19,24 +19,34 @@ export class Fragment {
     size?: number
   ) {
     this.size = size || 0
-    if (size == null) for (let i = 0; i < content.length; i++)
-      this.size += content[i].nodeSize
+    if (size == null) for (let i = 0; i < content.length; i++) this.size += content[i].nodeSize
   }
 
   /// Invoke a callback for all descendant nodes between the given two
   /// positions (relative to start of this fragment). Doesn't descend
   /// into a node when the callback returns `false`.
-  nodesBetween(from: number, to: number,
-               f: (node: Node, start: number, parent: Node | null, index: number) => boolean | void,
-               nodeStart = 0,
-               parent?: Node) {
+  nodesBetween(
+    from: number,
+    to: number,
+    f: (node: Node, start: number, parent: Node | null, index: number) => boolean | void,
+    nodeStart = 0,
+    parent?: Node
+  ) {
     for (let i = 0, pos = 0; pos < to; i++) {
-      let child = this.content[i], end = pos + child.nodeSize
-      if (end > from && f(child, nodeStart + pos, parent || null, i) !== false && child.content.size) {
+      let child = this.content[i],
+        end = pos + child.nodeSize
+      if (
+        end > from &&
+        f(child, nodeStart + pos, parent || null, i) !== false &&
+        child.content.size
+      ) {
         let start = pos + 1
-        child.nodesBetween(Math.max(0, from - start),
-                           Math.min(child.content.size, to - start),
-                           f, nodeStart + start)
+        child.nodesBetween(
+          Math.max(0, from - start),
+          Math.min(child.content.size, to - start),
+          f,
+          nodeStart + start
+        )
       }
       pos = end
     }
@@ -51,20 +61,37 @@ export class Fragment {
 
   /// Extract the text between `from` and `to`. See the same method on
   /// [`Node`](#model.Node.textBetween).
-  textBetween(from: number, to: number, blockSeparator?: string | null, leafText?: string | null | ((leafNode: Node) => string)) {
-    let text = "", first = true
-    this.nodesBetween(from, to, (node, pos) => {
-      let nodeText = node.isText ? node.text!.slice(Math.max(from, pos) - pos, to - pos)
-        : !node.isLeaf ? ""
-        : leafText ? (typeof leafText === "function" ? leafText(node) : leafText)
-        : node.type.spec.leafText ? node.type.spec.leafText(node)
-        : ""
-      if (node.isBlock && (node.isLeaf && nodeText || node.isTextblock) && blockSeparator) {
-        if (first) first = false
-        else text += blockSeparator
-      }
-      text += nodeText
-    }, 0)
+  textBetween(
+    from: number,
+    to: number,
+    blockSeparator?: string | null,
+    leafText?: string | null | ((leafNode: Node) => string)
+  ) {
+    let text = '',
+      first = true
+    this.nodesBetween(
+      from,
+      to,
+      (node, pos) => {
+        let nodeText = node.isText
+          ? node.text!.slice(Math.max(from, pos) - pos, to - pos)
+          : !node.isLeaf
+          ? ''
+          : leafText
+          ? typeof leafText === 'function'
+            ? leafText(node)
+            : leafText
+          : node.type.spec.leafText
+          ? node.type.spec.leafText(node)
+          : ''
+        if (node.isBlock && ((node.isLeaf && nodeText) || node.isTextblock) && blockSeparator) {
+          if (first) first = false
+          else text += blockSeparator
+        }
+        text += nodeText
+      },
+      0
+    )
     return text
   }
 
@@ -73,7 +100,10 @@ export class Fragment {
   append(other: Fragment) {
     if (!other.size) return this
     if (!this.size) return other
-    let last = this.lastChild!, first = other.firstChild!, content = this.content.slice(), i = 0
+    let last = this.lastChild!,
+      first = other.firstChild!,
+      content = this.content.slice(),
+      i = 0
     if (last.isText && last.sameMarkup(first)) {
       content[content.length - 1] = (last as TextNode).withText(last.text! + first.text!)
       i = 1
@@ -85,21 +115,27 @@ export class Fragment {
   /// Cut out the sub-fragment between the two given positions.
   cut(from: number, to = this.size) {
     if (from == 0 && to == this.size) return this
-    let result: Node[] = [], size = 0
-    if (to > from) for (let i = 0, pos = 0; pos < to; i++) {
-      let child = this.content[i], end = pos + child.nodeSize
-      if (end > from) {
-        if (pos < from || end > to) {
-          if (child.isText)
-            child = child.cut(Math.max(0, from - pos), Math.min(child.text!.length, to - pos))
-          else
-            child = child.cut(Math.max(0, from - pos - 1), Math.min(child.content.size, to - pos - 1))
+    let result: Node[] = [],
+      size = 0
+    if (to > from)
+      for (let i = 0, pos = 0; pos < to; i++) {
+        let child = this.content[i],
+          end = pos + child.nodeSize
+        if (end > from) {
+          if (pos < from || end > to) {
+            if (child.isText)
+              child = child.cut(Math.max(0, from - pos), Math.min(child.text!.length, to - pos))
+            else
+              child = child.cut(
+                Math.max(0, from - pos - 1),
+                Math.min(child.content.size, to - pos - 1)
+              )
+          }
+          result.push(child)
+          size += child.nodeSize
         }
-        result.push(child)
-        size += child.nodeSize
+        pos = end
       }
-      pos = end
-    }
     return new Fragment(result, size)
   }
 
@@ -142,19 +178,25 @@ export class Fragment {
   }
 
   /// The first child of the fragment, or `null` if it is empty.
-  get firstChild(): Node | null { return this.content.length ? this.content[0] : null }
+  get firstChild(): Node | null {
+    return this.content.length ? this.content[0] : null
+  }
 
   /// The last child of the fragment, or `null` if it is empty.
-  get lastChild(): Node | null { return this.content.length ? this.content[this.content.length - 1] : null }
+  get lastChild(): Node | null {
+    return this.content.length ? this.content[this.content.length - 1] : null
+  }
 
   /// The number of child nodes in this fragment.
-  get childCount() { return this.content.length }
+  get childCount() {
+    return this.content.length
+  }
 
   /// Get the child node at the given index. Raise an error when the
   /// index is out of range.
   child(index: number) {
     let found = this.content[index]
-    if (!found) throw new RangeError("Index " + index + " out of range for " + this)
+    if (!found) throw new RangeError('Index ' + index + ' out of range for ' + this)
     return found
   }
 
@@ -190,12 +232,14 @@ export class Fragment {
   /// Find the index and inner offset corresponding to a given relative
   /// position in this fragment. The result object will be reused
   /// (overwritten) the next time the function is called. @internal
-  findIndex(pos: number): {index: number, offset: number} {
+  findIndex(pos: number): { index: number; offset: number } {
     if (pos == 0) return retIndex(0, pos)
     if (pos == this.size) return retIndex(this.content.length, pos)
-    if (pos > this.size || pos < 0) throw new RangeError(`Position ${pos} outside of fragment (${this})`)
-    for (let i = 0, curPos = 0;; i++) {
-      let cur = this.child(i), end = curPos + cur.nodeSize
+    if (pos > this.size || pos < 0)
+      throw new RangeError(`Position ${pos} outside of fragment (${this})`)
+    for (let i = 0, curPos = 0; ; i++) {
+      let cur = this.child(i),
+        end = curPos + cur.nodeSize
       if (end >= pos) {
         if (end == pos) return retIndex(i + 1, end)
         return retIndex(i, curPos)
@@ -205,10 +249,14 @@ export class Fragment {
   }
 
   /// Return a debugging string that describes this fragment.
-  toString(): string { return "<" + this.toStringInner() + ">" }
+  toString(): string {
+    return '<' + this.toStringInner() + '>'
+  }
 
   /// @internal
-  toStringInner() { return this.content.join(", ") }
+  toStringInner() {
+    return this.content.join(', ')
+  }
 
   /// Create a JSON-serializeable representation of this fragment.
   toJSON(): any {
@@ -218,7 +266,7 @@ export class Fragment {
   /// Deserialize a fragment from its JSON representation.
   static fromJSON(schema: Schema, value: any) {
     if (!value) return Fragment.empty
-    if (!Array.isArray(value)) throw new RangeError("Invalid input for Fragment.fromJSON")
+    if (!Array.isArray(value)) throw new RangeError('Invalid input for Fragment.fromJSON')
     return new Fragment(value.map(schema.nodeFromJSON))
   }
 
@@ -226,14 +274,16 @@ export class Fragment {
   /// text nodes with the same marks are joined together.
   static fromArray(array: readonly Node[]) {
     if (!array.length) return Fragment.empty
-    let joined: Node[] | undefined, size = 0
+    let joined: Node[] | undefined,
+      size = 0
     for (let i = 0; i < array.length; i++) {
       let node = array[i]
       size += node.nodeSize
       if (i && node.isText && array[i - 1].sameMarkup(node)) {
         if (!joined) joined = array.slice(0, i)
-        joined[joined.length - 1] = (node as TextNode)
-                                      .withText((joined[joined.length - 1] as TextNode).text + (node as TextNode).text)
+        joined[joined.length - 1] = (node as TextNode).withText(
+          (joined[joined.length - 1] as TextNode).text + (node as TextNode).text
+        )
       } else if (joined) {
         joined.push(node)
       }
@@ -250,8 +300,14 @@ export class Fragment {
     if (nodes instanceof Fragment) return nodes
     if (Array.isArray(nodes)) return this.fromArray(nodes)
     if ((nodes as Node).attrs) return new Fragment([nodes as Node], (nodes as Node).nodeSize)
-    throw new RangeError("Can not convert " + nodes + " to a Fragment" +
-      ((nodes as any).nodesBetween ? " (looks like multiple versions of prosemirror-model were loaded)" : ""))
+    throw new RangeError(
+      'Can not convert ' +
+        nodes +
+        ' to a Fragment' +
+        ((nodes as any).nodesBetween
+          ? ' (looks like multiple versions of prosemirror-model were loaded)'
+          : '')
+    )
   }
 
   /// An empty fragment. Intended to be reused whenever a node doesn't
@@ -260,7 +316,7 @@ export class Fragment {
   static empty: Fragment = new Fragment([], 0)
 }
 
-const found = {index: 0, offset: 0}
+const found = { index: 0, offset: 0 }
 function retIndex(index: number, offset: number) {
   found.index = index
   found.offset = offset
