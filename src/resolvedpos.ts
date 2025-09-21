@@ -1,3 +1,6 @@
+// path 数组存储了从文档根节点到目标位置所经过的所有节点的“面包屑”路径。它是一个扁平化的数组，每三个元素为一组，代表路径上的一层：
+// [node_level_0, index_in_level_0, offset_of_level_0, node_level_1, index_in_level_1, offset_of_level_1, ...]
+
 import { Mark } from './mark'
 import { Node } from './node'
 

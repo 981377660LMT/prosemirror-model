@@ -1,3 +1,5 @@
+// 在不可变数据结构上管理一组带有关联规则（唯一、有序、互斥）的数据
+
 import { compareDeep } from './comparedeep'
 import { Attrs, MarkType, Schema } from './schema'
 
@@ -26,22 +28,29 @@ export class Mark {
       placed = false
     for (let i = 0; i < set.length; i++) {
       let other = set[i]
+      // 1. 唯一性检查
       if (this.eq(other)) return set
+
+      // 2. 互斥规则 (Exclusion)
       if (this.type.excludes(other.type)) {
-        if (!copy) copy = set.slice(0, i)
+        // 新 mark 排除旧 mark
+        if (!copy) copy = set.slice(0, i) // 开始复制，但不把 other 加入
       } else if (other.type.excludes(this.type)) {
-        return set
+        // 旧 mark 排除新 mark
+        return set // 新 mark 被拒绝，直接返回原 set
       } else {
+        // 3. 排序规则 (Sorting)
         if (!placed && other.type.rank > this.type.rank) {
           if (!copy) copy = set.slice(0, i)
-          copy.push(this)
+          copy.push(this) // 在 rank 更大的 mark 之前插入
           placed = true
         }
         if (copy) copy.push(other)
       }
     }
-    if (!copy) copy = set.slice()
-    if (!placed) copy.push(this)
+    // 4. 收尾
+    if (!copy) copy = set.slice() // 如果循环中从未创建副本，现在创建
+    if (!placed) copy.push(this) // 如果新 mark 的 rank 最大，在末尾添加
     return copy
   }
 

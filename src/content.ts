@@ -1,3 +1,5 @@
+// 解析在 NodeSpec 中定义的 content 表达式（一种类似正则表达式的语言），并将其编译成一个高效的确定性有限自动机 (DFA)。
+
 import { Fragment } from './fragment'
 import { NodeType } from './schema'
 

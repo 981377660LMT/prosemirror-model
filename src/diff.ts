@@ -1,5 +1,8 @@
 import { Fragment } from './fragment'
 
+/**
+ * 从文档开头向后比较，返回第一个不相同的位置。
+ */
 export function findDiffStart(a: Fragment, b: Fragment, pos: number): number | null {
   for (let i = 0; ; i++) {
     if (i == a.childCount || i == b.childCount) return a.childCount == b.childCount ? null : pos
@@ -25,6 +28,9 @@ export function findDiffStart(a: Fragment, b: Fragment, pos: number): number | n
   }
 }
 
+/**
+ * 从文档末尾向前比较，返回最后一个不相同的位置。
+ */
 export function findDiffEnd(
   a: Fragment,
   b: Fragment,

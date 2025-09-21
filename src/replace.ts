@@ -1,3 +1,5 @@
+// !为了完成这个复杂的任务，replace.ts 引入了一个至关重要的概念：Slice。
+
 import { Fragment } from './fragment'
 import { Schema } from './schema'
 import { Node, TextNode } from './node'

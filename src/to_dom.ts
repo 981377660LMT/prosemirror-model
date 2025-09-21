@@ -55,8 +55,10 @@ export class DOMSerializer {
     if (!target) target = doc(options).createDocumentFragment()
 
     let top = target!,
-      active: [Mark, HTMLElement | DocumentFragment][] = []
+      active: [Mark, HTMLElement | DocumentFragment][] = [] // stack
+
     fragment.forEach(node => {
+      // 处理mark
       if (active.length || node.marks.length) {
         let keep = 0,
           rendered = 0
@@ -234,6 +236,7 @@ function renderSpec(
   let tagName = (structure as [string])[0],
     suspicious
   if (typeof tagName != 'string') throw new RangeError('Invalid array passed to renderSpec')
+  // 防止攻击者通过节点的属性注入可执行的 DOM 结构。
   if (
     blockArraysIn &&
     (suspicious = suspiciousAttributes(blockArraysIn)) &&

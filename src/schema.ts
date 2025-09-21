@@ -291,7 +291,6 @@ function validateType(typeName: string, attrName: string, type: string) {
 }
 
 // Attribute descriptors
-
 class Attribute {
   hasDefault: boolean
   default: any
