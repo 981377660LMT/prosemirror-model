@@ -201,3 +201,365 @@ content.ts 是 ProseMirror 模型层严谨性和智能性的理论基础。它�
 因为 BFS 按层级扩展，它找到的第一个解必然是**最浅的**包装方案，即所需包装节点数量最少的方案，这通常也是最符合用户期望的。
 
 通过这两个精巧的搜索算法，`ContentMatch` 将一个静态的 DFA 图变成了能够动态推导和解决复杂内容匹配问题的强大引擎，这也是 ProseMirror Schema 系统如此严谨而又灵活的根本原因。
+
+---
+
+## 如何复用这一块代码
+
+当然可以。`prosemirror-model/src/content.ts` 是一个非常出色且独立的**“用于对象序列的正则表达式引擎”**。它的设计非常通用，完全可以从 ProseMirror 项目中剥离出来，用于任何需要根据模式来验证、匹配和修复对象序列的算法项目中。
+
+下面我将为你详细讲解如何复用这块代码，并将其应用到你自己的项目中。
+
+### 核心价值：它解决了什么问题？
+
+想象一下，你不仅仅是想匹配字符串（这是普通正则表达式做的事），而是想匹配一个**对象的序列**，并且这个匹配规则包含顺序、选择、重复等复杂逻辑。
+
+例如，在一个编译器或游戏引擎中，你可能需要验证一个指令序列是否合法：
+`"load_data (process_data | render_data)* save_data?"`
+
+content.ts 的代码就是用来：
+
+1.  **解析**这个模式字符串。
+2.  **编译**成一个高效的有限状态机 (DFA)。
+3.  提供 API 来**验证**一个指令对象序列是否符合模式。
+4.  提供 API 来**推断**需要插入或包裹哪些指令才能使一个不合法的序列变得合法。
+
+### 复用步骤指南
+
+#### 第 1 步：识别并复制代码
+
+首先，你需要将 content.ts 的核心逻辑复制到你的项目中。这主要包括：
+
+1.  **`ContentMatch` 类**：这是最终产物和主要的交互接口。
+2.  **`TokenStream` 类**：词法分析器。
+3.  **所有 `parse...` 函数**：`parseExpr`, `parseExprSeq`, `parseExprSubscript`, `parseExprAtom`, `parseExprRange`, `parseNum`。这些是语法分析器。
+4.  **`resolveName` 函数**：用于解析表达式中的名称和组。
+5.  **`nfa` 函数**：将抽象语法树（AST）编译成非确定性有限自动机（NFA）。
+6.  **`dfa` 函数**：将 NFA 编译成确定性有限自动机（DFA）。
+7.  **`nullFrom` 和 `cmp` 辅助函数**：`dfa` 函数的依赖。
+8.  **`checkForDeadEnds` 函数**：用于在编译后进行合法性检查。
+
+基本上，除了文件顶部的 `import` 语句，你需要 content.ts 中的所有代码。
+
+#### 第 2 步：泛化 `NodeType`
+
+代码中最核心的耦合点是 `NodeType`。你需要用一个适用于你自己项目的泛型接口来替换它。我们来分析一下代码中用到了 `NodeType` 的哪些属性和方法：
+
+- `type.name: string`：用于在日志和内部映射中识别。**（必需）**
+- `type.hasRequiredAttrs(): boolean`：判断一个类型的对象是否能被自动生成。**（必需）**
+- `type.isText: boolean`：一个特殊的标记，通常可以硬编码为 `false`。**（必需）**
+- `type.isInGroup(name: string): boolean`：支持在表达式中使用“组名”。**（必需）**
+- `type.contentMatch: ContentMatch`：用于 `findWrapping`，实现节点间的跳转。**（必需）**
+- `type.createAndFill(): YourObjectType`：用于 `fillBefore`，创建填充节点。**（必需）**
+- `type.isLeaf: boolean`：用于 `findWrapping`，判断是否可以作为包裹节点。**（必需）**
+- `type.isInline: boolean`：用于检查块/内联内容是否混用，如果你的项目没有这个概念，可以忽略或硬编码。**（可选）**
+
+现在，让我们定义一个你自己的泛型接口，姑且称之为 `MatchableType`：
+
+`````typescript
+// 在你的项目中定义这个接口
+interface MatchableType {
+  /** 类型的唯一名称 */
+  name: string;
+
+  /**
+   * 此类型的对象是否可以被自动生成（例如，它没有需要手动指定的必需参数）。
+   * `fillBefore` 和 `findWrapping` 会用它来决定是否可以自动插入此类型的对象。
+   */
+  isGeneratable: boolean;
+
+  /**
+   * 此类型是否属于某个组。
+   * @param groupName 组的名称。
+   */
+  isInGroup(groupName: string): boolean;
+
+  /**
+   * 如果此类型是一个容器，它自己的内容匹配规则是什么。
+   * 这使得 `findWrapping` 可以“进入”这个类型的内部进行搜索。
+   */
+  contentMatcher: ContentMatch<MatchableType>;
+
+  /**
+   * 创建一个此类型的默认实例。
+   * `fillBefore` 会调用它来生成填充对象。
+   */
+  createDefault(): any; // 'any' 可以是你项目中对象实例的基类
+
+  /**
+   * 此类型是否是“叶子”，即不能包含其他内容。
+   * `findWrapping` 会跳过叶子类型。
+   */
+  isLeaf: boolean;
+}
+```
+
+#### 第 3 步：适配和修改代码
+
+现在，你需要对复制过来的代码进行全局的查找和替换，将 `NodeType` 替换为你的 `MatchableType`。
+
+1.  **修改 `ContentMatch` 和 `MatchEdge`**：
+    将 `ContentMatch` 和 `MatchEdge` 改为泛型类，以接受你的 `MatchableType`。
+
+    ````typescript
+    // filepath: /path/to/your/content_engine.ts
+    type MatchEdge<T extends MatchableType> = { type: T; next: ContentMatch<T> };
+
+    export class ContentMatch<T extends MatchableType> {
+      readonly next: MatchEdge<T>[] = [];
+      // ... 其他属性 ...
+
+      // 构造函数和方法中的 NodeType 都需要替换为 T
+      matchType(type: T): ContentMatch<T> | null { /* ... */ }
+      // ...
+    }
+    ````
+
+2.  **修改函数签名**：
+    所有接收 `NodeType` 或 `nodeTypes` 映射的函数，都需要更新它们的签名。
+
+    ````typescript
+    // filepath: /path/to/your/content_engine.ts
+    // ...
+    static parse<T extends MatchableType>(string: string, nodeTypes: { readonly [name: string]: T }): ContentMatch<T> {
+      // ...
+    }
+    // ...
+    ````
+
+3.  **适配属性访问**：
+    将代码中所有对 `type.hasRequiredAttrs()`、`type.contentMatch` 等的访问，替换为对你的 `MatchableType` 接口中对应属性的访问。
+
+    *   `type.hasRequiredAttrs()` -> `!type.isGeneratable`
+    *   `type.isText` -> 可以直接移除或设为 `false`
+    *   `type.contentMatch` -> `type.contentMatcher`
+    *   `type.createAndFill()` -> `type.createDefault()`
+    *   `type.isLeaf` -> `type.isLeaf`
+    *   `type.isInGroup(name)` -> `type.isInGroup(name)`
+
+    例如，在 `fillBefore` 中：
+    `if (!(type.isText || type.hasRequiredAttrs()) && ...)`
+    应修改为：
+    `if (type.isGeneratable && ...)`
+
+#### 第 4 步：使用引擎
+
+完成适配后，你就可以在你的项目中使用它了！
+
+1.  **定义你的类型和组**：
+
+    ````typescript
+    // 假设这是你的算法项目中的对象类型
+    class LoadDataOp { /* ... */ }
+    class ProcessDataOp { /* ... */ }
+    class RenderDataOp { /* ... */ }
+    class SaveDataOp { /* ... */ }
+
+    // 实现 MatchableType 接口
+    const loadDataType: MatchableType = {
+      name: "load_data",
+      isGeneratable: true,
+      isInGroup: (group) => group === "ops",
+      contentMatcher: ContentMatch.empty, // 假设它是叶子节点
+      createDefault: () => new LoadDataOp(),
+      isLeaf: true,
+    };
+
+    const processDataType: MatchableType = {
+      name: "process_data",
+      isGeneratable: true,
+      isInGroup: (group) => group === "ops" || group === "background_ops",
+      contentMatcher: ContentMatch.empty,
+      createDefault: () => new ProcessDataOp(),
+      isLeaf: true,
+    };
+    // ... 为其他类型也进行定义
+
+    const allTypes = {
+        "load_data": loadDataType,
+        "process_data": processDataType,
+        /* ... */
+    };
+    ````
+
+2.  **编译模式**：
+
+    ````typescript
+    const pattern = "load_data (process_data | render_data)* save_data?";
+    const startState = ContentMatch.parse(pattern, allTypes);
+    ````
+
+3.  **验证序列**：
+
+    ````typescript
+    const mySequence = [new LoadDataOp(), new ProcessDataOp(), new ProcessDataOp()];
+    const mySequenceTypes = [loadDataType, processDataType, processDataType];
+
+    let currentState: ContentMatch<MatchableType> | null = startState;
+    for (const type of mySequenceTypes) {
+        if (!currentState) break;
+        currentState = currentState.matchType(type);
+    }
+
+    // 检查最终状态是否合法
+    if (currentState && currentState.validEnd) {
+        console.log("序列合法！");
+    } else {
+        console.log("序列不合法！");
+    }
+    ````
+
+通过以上步骤，你就成功地将 ProseMirror 中经过实战检验的高性能内容匹配引擎，移植到了你自己的项目中，用于解决通用的序列验证和修复问题。// 在你的项目中定义这个接口
+interface MatchableType {
+  /** 类型的唯一名称 */
+  name: string;
+
+  /**
+   * 此类型的对象是否可以被自动生成（例如，它没有需要手动指定的必需参数）。
+   * `fillBefore` 和 `findWrapping` 会用它来决定是否可以自动插入此类型的对象。
+   */
+  isGeneratable: boolean;
+
+  /**
+   * 此类型是否属于某个组。
+   * @param groupName 组的名称。
+   */
+  isInGroup(groupName: string): boolean;
+
+  /**
+   * 如果此类型是一个容器，它自己的内容匹配规则是什么。
+   * 这使得 `findWrapping` 可以“进入”这个类型的内部进行搜索。
+   */
+  contentMatcher: ContentMatch<MatchableType>;
+
+  /**
+   * 创建一个此类型的默认实例。
+   * `fillBefore` 会调用它来生成填充对象。
+   */
+  createDefault(): any; // 'any' 可以是你项目中对象实例的基类
+
+  /**
+   * 此类型是否是“叶子”，即不能包含其他内容。
+   * `findWrapping` 会跳过叶子类型。
+   */
+  isLeaf: boolean;
+}
+```
+
+#### 第 3 步：适配和修改代码
+
+现在，你需要对复制过来的代码进行全局的查找和替换，将 `NodeType` 替换为你的 `MatchableType`。
+
+1.  **修改 `ContentMatch` 和 `MatchEdge`**：
+    将 `ContentMatch` 和 `MatchEdge` 改为泛型类，以接受你的 `MatchableType`。
+
+    ````typescript
+    // filepath: /path/to/your/content_engine.ts
+    type MatchEdge<T extends MatchableType> = { type: T; next: ContentMatch<T> };
+
+    export class ContentMatch<T extends MatchableType> {
+      readonly next: MatchEdge<T>[] = [];
+      // ... 其他属性 ...
+
+      // 构造函数和方法中的 NodeType 都需要替换为 T
+      matchType(type: T): ContentMatch<T> | null { /* ... */ }
+      // ...
+    }
+    ````
+
+2.  **修改函数签名**：
+    所有接收 `NodeType` 或 `nodeTypes` 映射的函数，都需要更新它们的签名。
+
+    ````typescript
+    // filepath: /path/to/your/content_engine.ts
+    // ...
+    static parse<T extends MatchableType>(string: string, nodeTypes: { readonly [name: string]: T }): ContentMatch<T> {
+      // ...
+    }
+    // ...
+    ````
+
+3.  **适配属性访问**：
+    将代码中所有对 `type.hasRequiredAttrs()`、`type.contentMatch` 等的访问，替换为对你的 `MatchableType` 接口中对应属性的访问。
+
+    *   `type.hasRequiredAttrs()` -> `!type.isGeneratable`
+    *   `type.isText` -> 可以直接移除或设为 `false`
+    *   `type.contentMatch` -> `type.contentMatcher`
+    *   `type.createAndFill()` -> `type.createDefault()`
+    *   `type.isLeaf` -> `type.isLeaf`
+    *   `type.isInGroup(name)` -> `type.isInGroup(name)`
+
+    例如，在 `fillBefore` 中：
+    `if (!(type.isText || type.hasRequiredAttrs()) && ...)`
+    应修改为：
+    `if (type.isGeneratable && ...)`
+
+#### 第 4 步：使用引擎
+
+完成适配后，你就可以在你的项目中使用它了！
+
+1.  **定义你的类型和组**：
+
+    ````typescript
+    // 假设这是你的算法项目中的对象类型
+    class LoadDataOp { /* ... */ }
+    class ProcessDataOp { /* ... */ }
+    class RenderDataOp { /* ... */ }
+    class SaveDataOp { /* ... */ }
+
+    // 实现 MatchableType 接口
+    const loadDataType: MatchableType = {
+      name: "load_data",
+      isGeneratable: true,
+      isInGroup: (group) => group === "ops",
+      contentMatcher: ContentMatch.empty, // 假设它是叶子节点
+      createDefault: () => new LoadDataOp(),
+      isLeaf: true,
+    };
+
+    const processDataType: MatchableType = {
+      name: "process_data",
+      isGeneratable: true,
+      isInGroup: (group) => group === "ops" || group === "background_ops",
+      contentMatcher: ContentMatch.empty,
+      createDefault: () => new ProcessDataOp(),
+      isLeaf: true,
+    };
+    // ... 为其他类型也进行定义
+
+    const allTypes = {
+        "load_data": loadDataType,
+        "process_data": processDataType,
+        /* ... */
+    };
+    ````
+
+2.  **编译模式**：
+
+    ````typescript
+    const pattern = "load_data (process_data | render_data)* save_data?";
+    const startState = ContentMatch.parse(pattern, allTypes);
+    ````
+
+3.  **验证序列**：
+
+    ````typescript
+    const mySequence = [new LoadDataOp(), new ProcessDataOp(), new ProcessDataOp()];
+    const mySequenceTypes = [loadDataType, processDataType, processDataType];
+
+    let currentState: ContentMatch<MatchableType> | null = startState;
+    for (const type of mySequenceTypes) {
+        if (!currentState) break;
+        currentState = currentState.matchType(type);
+    }
+
+    // 检查最终状态是否合法
+    if (currentState && currentState.validEnd) {
+        console.log("序列合法！");
+    } else {
+        console.log("序列不合法！");
+    }
+    ````
+
+通过以上步骤，你就成功地将 ProseMirror 中经过实战检验的高性能内容匹配引擎，移植到了你自己的项目中，用于解决通用的序列验证和修复问题。
+`````

@@ -1,4 +1,5 @@
 // 解析在 NodeSpec 中定义的 content 表达式（一种类似正则表达式的语言），并将其编译成一个高效的确定性有限自动机 (DFA)。
+// ContentMatch 是一个状态机的节点。一个 ContentMatch 实例代表了“在当前节点内容的某个位置，接下来可以合法地插入什么？”这个问题的一个答案。
 
 import { Fragment } from './fragment'
 import { NodeType } from './schema'
@@ -27,7 +28,7 @@ export class ContentMatch {
     if (stream.next == null) return ContentMatch.empty
     let expr = parseExpr(stream)
     if (stream.next) stream.err('Unexpected trailing text')
-    let match = dfa(nfa(expr))
+    let match = dfa(nfa(expr)) // 正则表达式编译
     checkForDeadEnds(match, stream)
     return match
   }
@@ -78,18 +79,22 @@ export class ContentMatch {
   /// return a fragment if the resulting match goes to the end of the
   /// content expression.
   fillBefore(after: Fragment, toEnd = false, startIndex = 0): Fragment | null {
-    let seen: ContentMatch[] = [this]
+    let seen: ContentMatch[] = [this] // 1. 用于防止在图中无限循环
+    // 2. 递归搜索函数
     function search(match: ContentMatch, types: readonly NodeType[]): Fragment | null {
+      // 3. 成功的基本情况
       let finished = match.matchFragment(after, startIndex)
       if (finished && (!toEnd || finished.validEnd))
         return Fragment.from(types.map(tp => tp.createAndFill()!))
 
+      // 4. 递归探索
       for (let i = 0; i < match.next.length; i++) {
         let { type, next } = match.next[i]
+        // 5. 剪枝：只尝试可自动生成的节点
         if (!(type.isText || type.hasRequiredAttrs()) && seen.indexOf(next) == -1) {
           seen.push(next)
-          let found = search(next, types.concat(type))
-          if (found) return found
+          let found = search(next, types.concat(type)) // 6. 深入下一层
+          if (found) return found // 7. 找到解，立即返回
         }
       }
       return null
@@ -114,24 +119,26 @@ export class ContentMatch {
   computeWrapping(target: NodeType): readonly NodeType[] | null {
     type Active = { match: ContentMatch; type: NodeType | null; via: Active | null }
     let seen = Object.create(null),
-      active: Active[] = [{ match: this, type: null, via: null }]
+      active: Active[] = [{ match: this, type: null, via: null }] // 1. BFS 队列
     while (active.length) {
-      let current = active.shift()!,
+      let current = active.shift()!, // 2. 出队
         match = current.match
+      // 3. 成功的基本情况
       if (match.matchType(target)) {
         let result: NodeType[] = []
         for (let obj: Active = current; obj.type; obj = obj.via!) result.push(obj.type)
-        return result.reverse()
+        return result.reverse() // 4. 重建路径
       }
+      // 5. 探索邻居
       for (let i = 0; i < match.next.length; i++) {
         let { type, next } = match.next[i]
         if (
-          !type.isLeaf &&
-          !type.hasRequiredAttrs() &&
-          !(type.name in seen) &&
-          (!current.type || next.validEnd)
+          !type.isLeaf && // 必须是可包裹的节点
+          !type.hasRequiredAttrs() && // 必须是可自动生成的
+          !(type.name in seen) && // 防止重复探索
+          (!current.type || next.validEnd) // 优化：确保包裹路径是有效的
         ) {
-          active.push({ match: type.contentMatch, type, via: current })
+          active.push({ match: type.contentMatch, type, via: current }) // 6. 入队
           seen[type.name] = true
         }
       }
